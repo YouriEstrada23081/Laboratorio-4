@@ -2,17 +2,14 @@
 // Universidad del Valle de Guatemala
 // BE3029 - Electronica Digital 2
 // Youri Estrada
-// 4/08/2025
-// Laboratorio 3
+// 10/08/2025
+// Laboratorio 4 
 // MCU: ESP32 dev kit 1.0
-//******************************************/
-//******************************************/
-// Librerias
 //******************************************/
 #include <Arduino.h>
 #include <stdint.h>
-//paso 1 inclui rlibreria
 #include <driver/ledc.h>
+
 //******************************************/
 // Definiciones
 //******************************************/
@@ -25,56 +22,46 @@
 #define bt 15
 #define bt1 4
 #define servo 21
+
 unsigned long ts = 0;
-unsigned long ts_b3 = 0; 
-const long d = 300; //tiempo de presesionado estimado para comparar con el tiempo que se preseiona el botn
-//definiciones para el servo
-int posicion_servo = 2; //empezar a 90 grados
+unsigned long ts_b3 = 0;
+const long d = 300;
+
+// Definiciones para el servo
+int posicion_servo = 2; // Empezar a 90 grados
 unsigned long tsder = 0;
 unsigned long tsizq = 0;
 bool usder = false;
 bool usizq = false;
 
-//bandeeras
+// Banderas y contadores
 bool us2 = false;
-bool us3 = true; 
+bool us3 = true;
 int contador1 = 0;
 int contador2 = 0;
-//un arreglo para tener independencia entre cada intensidad
-int intensidades[3] = {0, 0, 0}; 
-//arreglo para las posiciones del servo
+
+// Arreglos
+int intensidades[3] = {0, 0, 0};
 const int Servo[5] = {1638, 3277, 4915, 6554, 8192};
 
+// Canales PWM
+#define pwmChannel 0
+#define pwmChannel1 1
+#define pwmChannel2 2
+#define pwmChannel3 3
 
-int dutyCycle = 0;
-//paso 2 Escoger el canal 
-#define pwmChannel 0 // Para LEDB
-#define pwmChannel1 1 // Para LEDG
-#define pwmChannel2 2 // Para LEDR
-#define pwmChannel3 3 // Para servo
-
-//paso 3 escoger la frecuencia 
+// Frecuencias y Resolución
 #define freqPWM 100
-#define freqPWM1 100
-#define freqPWM2 100
-#define freqPWM_servo 50  
-
-//paso 4 escoger la resolucion
-#define resPWN 6 // Rango de 0 a 63
-#define resPWN1 6
-#define resPWN2 6
+#define resPWN 6
+#define freqPWM_servo 50
 #define resPWM_servo 16
-//******************************************/
+
 // Prototipos de funciones
-//******************************************/
 void initPWN(void);
 void initPWN1(void);
 void initPWN2(void);
 void initServo(void);
 
-//******************************************/
-// ISRs Rutinas de Interrupcion
-//******************************************/
 //******************************************/
 // Configuracion
 //******************************************/
@@ -85,11 +72,12 @@ void setup() {
   initServo();
   pinMode(bt, INPUT_PULLDOWN);
   pinMode(bt1, INPUT_PULLDOWN);
-  pinMode(bt2, INPUT_PULLDOWN); //para del boton pin y voltaje
-  pinMode(bt3, INPUT_PULLUP);   //para el boton pin y tierra 
+  pinMode(bt2, INPUT_PULLDOWN);
+  pinMode(bt3, INPUT_PULLUP);
   ledcWrite(pwmChannel3, Servo[posicion_servo]);
   Serial.begin(115200);
 }
+
 //******************************************/
 // Loop Principal
 //******************************************/
@@ -98,101 +86,106 @@ void loop() {
   bool b3 = digitalRead(bt3);
   bool b = digitalRead(bt);
   bool b1 = digitalRead(bt1);
-  Serial.println(contador2);
- if (b2 == true && us2 == false) {
+  if (b2 == true && us2 == false) {
     if ((millis() - ts) > d) {
       contador1++;
-      if (contador1 > 2) {
+      if (contador1 > 3) { 
         contador1 = 0;
       }
       ts = millis();
-      // Al cambiar de LED vemos su nivel de brillo guardado.
-      int intensidadG = intensidades[contador1];
-      if (intensidadG== 0) {
-        contador2 = 0;
-      } else if (intensidadG == 10) {
-        contador2 = 1;
-      } else if (intensidadG == 32) {
-        contador2 = 2;
-      } else if (intensidadG == 63) {
-        contador2 = 3;
+      if (contador1 < 3) {
+        int intensidadG = intensidades[contador1];
+        if (intensidadG == 0) 
+          contador2 = 0;
+        else if (intensidadG == 10) 
+          contador2 = 1;
+        else if (intensidadG == 32) 
+          contador2 = 2;
+        else if (intensidadG == 63) 
+          contador2 = 3;
       }
     }
   }
   us2 = b2;
-  if (contador1 > 2) {
-    contador1 = 0;
-  }
-  if (b3 == false && us3 == true) { 
-    if ((millis() - ts_b3) > d) { 
+  if (b3 == false && us3 == true) {
+    if ((millis() - ts_b3) > d) {
       contador2++;
-      ts_b3 = millis(); 
+      if (contador2 > 3) {
+        contador2 = 0;
+      }
+      ts_b3 = millis();
     }
   }
   us3 = b3;
-  if (contador2 > 3) {
-    contador2 = 0;
-  }
-// Determina cuál es el nivel de intensidad que se quiere
-  int dutyCycleD = 0;
-  switch (contador2) {
-    case 0: 
-      dutyCycleD= 0; 
-    break;
-    case 1: 
-      dutyCycleD = 10; 
-    break;
-    case 2: 
-      dutyCycleD = 32; 
-    break; 
-    case 3: 
-      dutyCycleD = 63; 
-    break;
-}
-  intensidades[contador1] = dutyCycleD; //cambiamos la intensidad segun el contador 
-  ledcWrite(pwmChannel, intensidades[0]); 
-  ledcWrite(pwmChannel1, intensidades[1]); 
-  ledcWrite(pwmChannel2, intensidades[2]);
-  //Control de servomotor
- if (b== true && usder == false) {
+  if (b == true && usder == false) {
     if ((millis() - tsder) > d) {
-      if (posicion_servo < 4) { 
-        posicion_servo++;       
-      }
+      if (posicion_servo < 4) posicion_servo++;
       tsder = millis();
     }
   }
   usder = b;
 
-  if (b1== true && usizq == false) {
+  if (b1 == true && usizq == false) {
     if ((millis() - tsizq) > d) {
-      if (posicion_servo > 0) {
-        posicion_servo--; 
-      }
+      if (posicion_servo > 0) posicion_servo--;
       tsizq = millis();
     }
   }
   usizq = b1;
   ledcWrite(pwmChannel3, Servo[posicion_servo]);
+  if (contador1 < 3) {
+    int dutyCycleD = 0;
+    switch (contador2) {
+      case 0: 
+        dutyCycleD = 0; 
+        break;
+      case 1: 
+        dutyCycleD = 10; 
+        break;
+      case 2: 
+        dutyCycleD = 32; 
+        break;
+      case 3: 
+        dutyCycleD = 63; 
+        break;
+    }
+    intensidades[contador1] = dutyCycleD;
+    ledcWrite(pwmChannel, intensidades[0]);  
+    ledcWrite(pwmChannel1, intensidades[1]);  
+    ledcWrite(pwmChannel2, intensidades[2]); 
 
+  } else {
+    int brillo_automatico = 0;
+    switch (posicion_servo) {
+      case 0: brillo_automatico = 0; break; 
+      case 1: brillo_automatico = 10; break; 
+      case 2: brillo_automatico = 32; break; 
+      case 3: brillo_automatico = 63; break;
+      case 4: brillo_automatico = 0; break; 
+    }
+
+    // Aplicar el mismo brillo
+    ledcWrite(pwmChannel, brillo_automatico);
+    ledcWrite(pwmChannel1, brillo_automatico);
+    ledcWrite(pwmChannel2, brillo_automatico);
+  }
 }
-
 //******************************************/
-// Otras funciones
+// Otras funciones 
 //******************************************/
-void initPWN(void){ //parte del paso 5
+void initPWN(void) {
   ledcSetup(pwmChannel, freqPWM, resPWN);
   ledcAttachPin(LEDB, pwmChannel);
 }
-void initPWN1(void){ //parte del paso 5
-  ledcSetup(pwmChannel1, freqPWM1, resPWN1);
+void initPWN1(void) {
+  ledcSetup(pwmChannel1, freqPWM, resPWN);
   ledcAttachPin(LEDG, pwmChannel1);
 }
-void initPWN2(void){ //parte del paso 5
-  ledcSetup(pwmChannel2, freqPWM2, resPWN2);
+void initPWN2(void) {
+  ledcSetup(pwmChannel2, freqPWM, resPWN);
   ledcAttachPin(LEDR, pwmChannel2);
 }
-void initServo(void){
+void initServo(void) {
   ledcSetup(pwmChannel3, freqPWM_servo, resPWM_servo);
   ledcAttachPin(servo, pwmChannel3);
 }
