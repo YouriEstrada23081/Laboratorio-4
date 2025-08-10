@@ -23,10 +23,17 @@
 #define bt2 17
 #define bt3 18
 #define bt 15
-#define bt1 0
+#define bt1 4
+#define servo 21
 unsigned long ts = 0;
 unsigned long ts_b3 = 0; 
 const long d = 300; //tiempo de presesionado estimado para comparar con el tiempo que se preseiona el botn
+//definiciones para el servo
+int posicion_servo = 2; //empezar a 90 grados
+unsigned long tsder = 0;
+unsigned long tsizq = 0;
+bool usder = false;
+bool usizq = false;
 
 //bandeeras
 bool us2 = false;
@@ -35,30 +42,35 @@ int contador1 = 0;
 int contador2 = 0;
 //un arreglo para tener independencia entre cada intensidad
 int intensidades[3] = {0, 0, 0}; 
+//arreglo para las posiciones del servo
+const int Servo[5] = {1638, 3277, 4915, 6554, 8192};
+
 
 int dutyCycle = 0;
 //paso 2 Escoger el canal 
 #define pwmChannel 0 // Para LEDB
 #define pwmChannel1 1 // Para LEDG
 #define pwmChannel2 2 // Para LEDR
-#define pwmChannel3 3 // Para LEDR
+#define pwmChannel3 3 // Para servo
 
 //paso 3 escoger la frecuencia 
 #define freqPWM 100
 #define freqPWM1 100
 #define freqPWM2 100
+#define freqPWM_servo 50  
 
 //paso 4 escoger la resolucion
 #define resPWN 6 // Rango de 0 a 63
 #define resPWN1 6
 #define resPWN2 6
-
+#define resPWM_servo 16
 //******************************************/
 // Prototipos de funciones
 //******************************************/
 void initPWN(void);
 void initPWN1(void);
 void initPWN2(void);
+void initServo(void);
 
 //******************************************/
 // ISRs Rutinas de Interrupcion
@@ -70,10 +82,12 @@ void setup() {
   initPWN();
   initPWN1();
   initPWN2();
+  initServo();
   pinMode(bt, INPUT_PULLDOWN);
   pinMode(bt1, INPUT_PULLDOWN);
   pinMode(bt2, INPUT_PULLDOWN); //para del boton pin y voltaje
   pinMode(bt3, INPUT_PULLUP);   //para el boton pin y tierra 
+  ledcWrite(pwmChannel3, Servo[posicion_servo]);
   Serial.begin(115200);
 }
 //******************************************/
@@ -82,6 +96,8 @@ void setup() {
 void loop() {
   bool b2 = digitalRead(bt2);
   bool b3 = digitalRead(bt3);
+  bool b = digitalRead(bt);
+  bool b1 = digitalRead(bt1);
   Serial.println(contador2);
  if (b2 == true && us2 == false) {
     if ((millis() - ts) > d) {
@@ -137,6 +153,28 @@ void loop() {
   ledcWrite(pwmChannel, intensidades[0]); 
   ledcWrite(pwmChannel1, intensidades[1]); 
   ledcWrite(pwmChannel2, intensidades[2]);
+  //Control de servomotor
+ if (b== true && usder == false) {
+    if ((millis() - tsder) > d) {
+      if (posicion_servo < 4) { 
+        posicion_servo++;       
+      }
+      tsder = millis();
+    }
+  }
+  usder = b;
+
+  if (b1== true && usizq == false) {
+    if ((millis() - tsizq) > d) {
+      if (posicion_servo > 0) {
+        posicion_servo--; 
+      }
+      tsizq = millis();
+    }
+  }
+  usizq = b1;
+  ledcWrite(pwmChannel3, Servo[posicion_servo]);
+
 }
 
 //******************************************/
@@ -153,4 +191,8 @@ void initPWN1(void){ //parte del paso 5
 void initPWN2(void){ //parte del paso 5
   ledcSetup(pwmChannel2, freqPWM2, resPWN2);
   ledcAttachPin(LEDR, pwmChannel2);
+}
+void initServo(void){
+  ledcSetup(pwmChannel3, freqPWM_servo, resPWM_servo);
+  ledcAttachPin(servo, pwmChannel3);
 }
