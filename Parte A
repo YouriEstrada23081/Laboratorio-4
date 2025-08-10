@@ -1,0 +1,157 @@
+//******************************************/
+// Universidad del Valle de Guatemala
+// BE3029 - Electronica Digital 2
+// Youri Estrada
+// 4/08/2025
+// Laboratorio 3
+// MCU: ESP32 dev kit 1.0
+//******************************************/
+//******************************************/
+// Librerias
+//******************************************/
+#include <Arduino.h>
+#include <stdint.h>
+//paso 1 inclui rlibreria
+#include <driver/ledc.h>
+//******************************************/
+// Definiciones
+//******************************************/
+#define LEDR 26
+#define LEDB 14
+#define LEDG 27
+
+#define bt2 17
+#define bt3 18
+#define bt 15
+#define bt1 0
+unsigned long ts = 0;
+// CORRECCIÓN 1: Se necesita un segundo temporizador para el segundo botón.
+unsigned long ts_b3 = 0; 
+const long d = 300; //tiempo de presesionado estimado para comparar con el tiempo que se preseiona el botn
+
+//bandeeras
+bool us2 = false;
+bool us3 = true; // CORRECCIÓN 2: El botón PULLUP inicia en 'true' (no presionado).
+int contador1 = 0;
+int contador2 = 0;
+//un arreglo para tener independencia entre cada intensidad
+int intensidades[3] = {0, 0, 0}; 
+
+int dutyCycle = 0;
+//paso 2 Escoger el canal 
+#define pwmChannel 0 // Para LEDB
+#define pwmChannel1 1 // Para LEDG
+#define pwmChannel2 2 // Para LEDR
+#define pwmChannel3 3 // Para LEDR
+
+//paso 3 escoger la frecuencia 
+#define freqPWM 100
+#define freqPWM1 100
+#define freqPWM2 100
+
+//paso 4 escoger la resolucion
+#define resPWN 6 // Rango de 0 a 63
+#define resPWN1 6
+#define resPWN2 6
+
+//******************************************/
+// Prototipos de funciones
+//******************************************/
+void initPWN(void);
+void initPWN1(void);
+void initPWN2(void);
+
+//******************************************/
+// ISRs Rutinas de Interrupcion
+//******************************************/
+//******************************************/
+// Configuracion
+//******************************************/
+void setup() {
+  initPWN();
+  initPWN1();
+  initPWN2();
+  pinMode(bt, INPUT_PULLDOWN);
+  pinMode(bt1, INPUT_PULLDOWN);
+  pinMode(bt2, INPUT_PULLDOWN); //para del boton pin y voltaje
+  pinMode(bt3, INPUT_PULLUP);   //para el boton pin y tierra 
+  Serial.begin(115200);
+}
+//******************************************/
+// Loop Principal
+//******************************************/
+void loop() {
+  bool b2 = digitalRead(bt2);
+  bool b3 = digitalRead(bt3);
+  Serial.println(contador2);
+ if (b2 == true && us2 == false) {
+    if ((millis() - ts) > d) {
+      contador1++;
+      if (contador1 > 2) {
+        contador1 = 0;
+      }
+      ts = millis();
+      // Al cambiar de LED vemos su nivel de brillo guardado.
+      int intensidadG = intensidades[contador1];
+      if (intensidadG== 0) {
+        contador2 = 0;
+      } else if (intensidadG == 10) {
+        contador2 = 1;
+      } else if (intensidadG == 32) {
+        contador2 = 2;
+      } else if (intensidadG == 63) {
+        contador2 = 3;
+      }
+    }
+  }
+  us2 = b2;
+  if (contador1 > 2) {
+    contador1 = 0;
+  }
+  if (b3 == false && us3 == true) { 
+    if ((millis() - ts_b3) > d) { 
+      contador2++;
+      ts_b3 = millis(); 
+    }
+  }
+  us3 = b3;
+  if (contador2 > 3) {
+    contador2 = 0;
+  }
+// Determina cuál es el nivel de intensidad que se quiere
+  int dutyCycleD = 0;
+  switch (contador2) {
+    case 0: 
+      dutyCycleD= 0; 
+    break;
+    case 1: 
+      dutyCycleD = 10; 
+    break;
+    case 2: 
+      dutyCycleD = 32; 
+    break; 
+    case 3: 
+      dutyCycleD = 63; 
+    break;
+}
+  intensidades[contador1] = dutyCycleD; //cambiamos la intensidad segun el contador 
+  ledcWrite(pwmChannel, intensidades[0]); 
+  ledcWrite(pwmChannel1, intensidades[1]); 
+  ledcWrite(pwmChannel2, intensidades[2]);
+}
+
+//******************************************/
+// Otras funciones
+//******************************************/
+void initPWN(void){ //parte del paso 5
+  ledcSetup(pwmChannel, freqPWM, resPWN);
+  ledcAttachPin(LEDB, pwmChannel);
+}
+void initPWN1(void){ //parte del paso 5
+  ledcSetup(pwmChannel1, freqPWM1, resPWN1);
+  ledcAttachPin(LEDG, pwmChannel1);
+}
+void initPWN2(void){ //parte del paso 5
+  ledcSetup(pwmChannel2, freqPWM2, resPWN2);
+  ledcAttachPin(LEDR, pwmChannel2);
+}
