@@ -93,7 +93,7 @@ void loop() {
         contador1 = 0;
       }
       ts = millis();
-      if (contador1 < 3) {
+      if (contador1 < 3) { //ver la intendisdad que se tenia anteriormente y llevar el contador a dicha posicion
         int intensidadG = intensidades[contador1];
         if (intensidadG == 0) 
           contador2 = 0;
@@ -107,6 +107,7 @@ void loop() {
     }
   }
   us2 = b2;
+  //control de vervos derecha
   if (b3 == false && us3 == true) {
     if ((millis() - ts_b3) > d) {
       contador2++;
@@ -117,6 +118,7 @@ void loop() {
     }
   }
   us3 = b3;
+//control de vervos izquierda
   if (b == true && usder == false) {
     if ((millis() - tsder) > d) {
       if (posicion_servo < 4) posicion_servo++;
@@ -133,7 +135,7 @@ void loop() {
   }
   usizq = b1;
   ledcWrite(pwmChannel3, Servo[posicion_servo]);
-  if (contador1 < 3) {
+  if (contador1 < 3) { //modo independdiente de leds
     int dutyCycleD = 0;
     switch (contador2) {
       case 0: 
@@ -150,13 +152,15 @@ void loop() {
         break;
     }
     intensidades[contador1] = dutyCycleD;
+  //colocar la intensidad segun led elegido
     ledcWrite(pwmChannel, intensidades[0]);  
     ledcWrite(pwmChannel1, intensidades[1]);  
     ledcWrite(pwmChannel2, intensidades[2]); 
 
-  } else {
+  } else { //contador = 4 modo servo
     int brillo_automatico = 0;
     switch (posicion_servo) {
+  //segun posicion de servo asi sera el brillo
       case 0: brillo_automatico = 0; break; 
       case 1: brillo_automatico = 10; break; 
       case 2: brillo_automatico = 32; break; 
